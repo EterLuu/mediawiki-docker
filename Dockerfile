@@ -29,7 +29,8 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         ca-certificates git unzip ghostscript poppler-utils imagemagick python3; \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/*; \
+    chmod 755 /var/www /var/www/html
 
 # ---- luasandbox（Scribunto 推荐引擎；基础镜像若已自带则跳过）----
 # 编译依赖用完即删，只保留 .so 实际链接到的运行库（与官方 PHP 镜像同样的做法）
