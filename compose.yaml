@@ -1,0 +1,54 @@
+# 不使用 Docker 命名卷：数据都放在本目录下的宿主机文件夹里，方便备份和迁移。
+#   ./data/config/LocalSettings.php   网页安装完成后把下载的文件放进来，重启即可生效
+#   ./data/images/                    上传文件
+#   ./data/mysql/                     数据库数据
+# 以上挂载都是可选的；去掉某一行，对应数据就只存在容器里，删除容器后丢失。
+
+x-mediawiki: &mediawiki
+  # 使用系列标签（如 1.46）自动获得补丁更新；想完全固定就写精确版本（如 1.46.2）
+  image: ${MW_IMAGE:-ghcr.io/OWNER/REPO}:${MW_TAG:-1.46}
+  restart: unless-stopped
+  volumes:
+    - ./data/config:/var/www/config
+    - ./data/images:/var/www/html/images
+
+services:
+  mediawiki:
+    <<: *mediawiki
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "${MW_PORT:-8080}:80"
+    environment:
+      # 镜像版本或组件变化时自动执行 update.php（只让这一个容器负责升级）
+      MW_AUTO_UPDATE: "true"
+
+  # 后台任务队列（可选）：docker compose --profile jobs up -d
+  jobrunner:
+    <<: *mediawiki
+    depends_on:
+      mediawiki:
+        condition: service_healthy
+    environment:
+      MW_AUTO_UPDATE: "false"
+    command: ["runuser", "-u", "www-data", "--", "php", "maintenance/run.php", "runJobs", "--wait", "--maxjobs", "1000"]
+    healthcheck:
+      disable: true
+    profiles: ["jobs"]
+
+  database:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - ./data/mysql:/var/lib/mysql

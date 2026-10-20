@@ -1,0 +1,10 @@
+.git
+.github
+*.md
+compose.yaml
+.env
+.env.*
+LocalSettings.php
+data
+scripts
+versions.json

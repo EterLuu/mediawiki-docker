@@ -1,0 +1,6 @@
+{
+  "$comment": "构建哪些 MediaWiki 系列。组件（皮肤/扩展）在 components.json 中配置。",
+  "track": ["stable", "lts"],
+  "extra_series": [],
+  "min_series": "1.43"
+}
