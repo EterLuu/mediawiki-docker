@@ -52,7 +52,7 @@ docker run --rm --entrypoint cat ghcr.io/owner/repo:1.46 /etc/mediawiki-image/co
 | 字段 | 说明 |
 |---|---|
 | `name` | 目录名，也是 `wfLoadExtension`/`wfLoadSkin` 的参数 |
-| `source` | `bundled`、`gerrit`（无法访问时回退 Wikimedia 官方 GitHub 镜像）、`github:<owner>/<repo>`，或完整的 git 地址 |
+| `source` | `bundled`、`gerrit`（无法访问时回退 Wikimedia 官方 GitHub 镜像）、`github:<owner>/<repo>`，或完整的 git 地址；可按系列分别指定 |
 | `ref` | 分支、标签或 commit。省略表示匹配的 `REL1_xx`。可按系列分别指定：`{"default": "master", "1.43": "REL1_43"}` |
 | `mediawiki` | 版本约束，如 `">=1.43.9"`、`"<1.44"`，逗号表示同时满足。不满足时该版本的镜像里跳过此组件 |
 | `load` | `false` 表示只安装、不自动加载（默认 `true`） |

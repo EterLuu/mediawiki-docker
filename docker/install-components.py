@@ -71,9 +71,14 @@ def mw_version() -> str:
     return m[1]
 
 
+def resolve_series(value, series: str):
+    if isinstance(value, dict):
+        return value.get(series, value.get("default"))
+    return value
+
+
 def resolve_ref(ref, series: str, branch: str) -> str | None:
-    if isinstance(ref, dict):
-        ref = ref.get(series, ref.get("default"))
+    ref = resolve_series(ref, series)
     if ref in (None, "", "REL"):
         return None  # 表示“跟随 MediaWiki 发布分支”
     return str(ref)
@@ -174,7 +179,9 @@ def install(manifest: dict) -> None:
                 continue
 
             dest = MW_HOME / kind / name
-            source = item.get("source", "bundled")
+            source = resolve_series(item.get("source", "bundled"), series)
+            if not isinstance(source, str):
+                raise ManifestError(f"{key}: source must be a string or a per-series mapping")
             ref = resolve_ref(item.get("ref"), series, branch)
 
             if source == "bundled":
