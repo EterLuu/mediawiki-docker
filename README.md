@@ -129,6 +129,13 @@ docker compose up -d
 3. 执行 `docker compose restart mediawiki`。容器启动时会自动接入这份配置并运行 `update.php` 建表。
 4. 可选：启用后台任务队列 `docker compose --profile jobs up -d`。
 
+镜像同时提供 `/w/` 别名，用于访问 MediaWiki 的脚本和静态资源。若希望生成的链接也使用 `/w`，在 `require_once "$IP/extensions.php";` 之后加入：
+
+```php
+$wgScriptPath = '/w';
+$wgResourceBasePath = $wgScriptPath;
+```
+
 ### 配置的生效顺序
 
 后者覆盖前者：

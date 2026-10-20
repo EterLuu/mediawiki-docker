@@ -32,10 +32,23 @@ is_root() { [ "$(id -u)" = 0 ]; }
 # 以 www-data 身份运行，避免生成 root 拥有的缓存文件
 as_www() {
 	if is_root; then
-		runuser -u www-data -- "$@"
+		runuser -u www-data --preserve-environment -- "$@"
 	else
 		"$@"
 	fi
+}
+
+fix_runtime_permissions() {
+	# The official image normally ships these directories searchable by
+	# www-data, but bind mounts and host-side chmod/chown can remove that bit.
+	# Keep the application tree and the external config readable without making
+	# LocalSettings.php world-readable (it contains the database password).
+	is_root || return 0
+	chmod a+rx /var/www /var/www/html 2> /dev/null || true
+	[ -d "$CONFIG_DIR" ] || return 0
+	chgrp -R www-data "$CONFIG_DIR" 2> /dev/null || true
+	find "$CONFIG_DIR" -type d -exec chmod g+rx {} + 2> /dev/null || true
+	find "$CONFIG_DIR" -type f -exec chmod g+r {} + 2> /dev/null || true
 }
 
 link_local_settings() {
@@ -112,6 +125,7 @@ auto_update() {
 	log "upgrade finished"
 }
 
+fix_runtime_permissions
 link_local_settings
 fix_images_permissions
 
