@@ -79,14 +79,26 @@ def resolve_ref(ref, series: str, branch: str) -> str | None:
     return str(ref)
 
 
-def source_url(kind: str, name: str, source: str) -> str:
+def source_urls(kind: str, name: str, source: str) -> list[str]:
     if source == "gerrit":
-        return f"https://gerrit.wikimedia.org/r/mediawiki/{kind}/{name}"
+        # Gerrit occasionally rejects anonymous clones from CI runners (HTTP
+        # 403). Wikimedia maintains read-only GitHub mirrors for its MediaWiki
+        # repositories, so keep Gerrit as the primary source and use the mirror
+        # as a fallback when the runner cannot reach Gerrit.
+        return [
+            f"https://gerrit.wikimedia.org/r/mediawiki/{kind}/{name}",
+            f"https://github.com/wikimedia/mediawiki-{kind}-{name}.git",
+        ]
     if source.startswith("github:"):
-        return f"https://github.com/{source[len('github:'):]}.git"
+        return [f"https://github.com/{source[len('github:'):]}.git"]
     if re.match(r"^(https?://|git@|ssh://)", source):
-        return source
+        return [source]
     raise ManifestError(f"{kind}/{name}: unknown source {source!r}")
+
+
+def source_url(kind: str, name: str, source: str) -> str:
+    """Return the primary URL for callers that only need one source."""
+    return source_urls(kind, name, source)[0]
 
 
 def git(*args: str, cwd: Path | None = None) -> str:
@@ -177,16 +189,24 @@ def install(manifest: dict) -> None:
                 log(f"{key}: bundled with this release, using it")
                 lines.append(f"{key} bundled -")
             else:
-                url = source_url(kind, name, source)
                 use_ref = ref or branch
                 if (dest / json_name).is_file():
                     log(f"{key}: replacing bundled copy with {use_ref}")
-                try:
-                    sha = clone(url, use_ref, dest)
-                except subprocess.CalledProcessError as exc:
-                    raise ManifestError(
-                        f"{key}: cannot fetch {use_ref!r} from {url}\n{(exc.stderr or '').strip()}"
-                    ) from None
+                urls = source_urls(kind, name, source)
+                fetch_errors: list[str] = []
+                for index, url in enumerate(urls):
+                    try:
+                        sha = clone(url, use_ref, dest)
+                        if index:
+                            log(f"{key}: using mirror {url}")
+                        break
+                    except subprocess.CalledProcessError as exc:
+                        detail = (exc.stderr or "").strip()
+                        fetch_errors.append(f"{url}: {detail}")
+                        if index + 1 == len(urls):
+                            raise ManifestError(
+                                f"{key}: cannot fetch {use_ref!r}\n" + "\n".join(fetch_errors)
+                            ) from None
                 log(f"{key}: {use_ref} @ {sha[:12]}")
                 lines.append(f"{key} {use_ref} {sha}")
 
