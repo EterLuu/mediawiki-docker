@@ -43,7 +43,7 @@ jobs:
       has_jobs: ${{ steps.resolve.outputs.has_jobs }}
       publish: ${{ steps.resolve.outputs.publish }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
@@ -92,7 +92,7 @@ jobs:
     env:
       PUBLISH: ${{ needs.resolve.outputs.publish }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: docker/setup-qemu-action@v3
         if: env.PUBLISH == 'true'
