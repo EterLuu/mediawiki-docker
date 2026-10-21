@@ -9,7 +9,7 @@
 #   docker build --build-arg MW_VERSION=1.46.2 -t mediawiki-custom:1.46.2 .
 
 ARG MW_VERSION=1.46.2
-FROM mediawiki:${MW_VERSION}
+FROM mediawiki:${MW_VERSION}-fpm
 
 ARG MW_VERSION
 
@@ -28,7 +28,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        ca-certificates git unzip ghostscript poppler-utils imagemagick python3; \
+        ca-certificates curl git nginx unzip ghostscript poppler-utils imagemagick python3; \
     rm -rf /var/lib/apt/lists/*; \
     chmod 755 /var/www /var/www/html
 
@@ -60,6 +60,10 @@ RUN set -eux; \
 
 WORKDIR /var/www/html
 
+# Public script/resource URLs use /w while the official image stores files at
+# the document root.
+RUN ln -s /var/www/html /var/www/html/w
+
 # composer：只有 components.json 里标了 "composer": true 的组件才会用到
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
@@ -84,13 +88,16 @@ COPY config/extensions.php /var/www/html/extensions.php
 COPY config/settings/ /etc/mediawiki-image/settings/
 COPY --chmod=0755 docker/mw-entrypoint.sh /usr/local/bin/mw-entrypoint
 COPY --chmod=0755 docker/mw-smoke-test.sh /usr/local/bin/mw-smoke-test
-COPY docker/mediawiki-w.conf /etc/apache2/conf-enabled/mediawiki-w.conf
-RUN a2enmod rewrite && apache2ctl configtest
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chmod=0755 docker/mediawiki-web-start /usr/local/bin/mediawiki-web-start
+RUN nginx -t
 # 升级状态读写脚本：状态存在数据库 updatelog 表中，容器无需持久化卷
 COPY --chmod=0644 docker/ImageState.php docker/CheckComponents.php /usr/local/lib/mediawiki-image/
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD curl -fsS -o /dev/null http://127.0.0.1/ || exit 1
 
+EXPOSE 80
+
 ENTRYPOINT ["mw-entrypoint"]
-CMD ["apache2-foreground"]
+CMD ["mediawiki-web-start"]

@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+php-fpm --nodaemonize &
+php_pid=$!
+nginx -g 'daemon off;' &
+nginx_pid=$!
+
+stop() {
+    kill -TERM "$nginx_pid" "$php_pid" 2> /dev/null || true
+}
+trap stop TERM INT
+
+set +e
+wait -n "$nginx_pid" "$php_pid"
+status=$?
+set -e
+stop
+wait "$nginx_pid" "$php_pid" 2> /dev/null || true
+exit "$status"

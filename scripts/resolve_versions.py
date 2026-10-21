@@ -138,7 +138,8 @@ def main() -> int:
     if only:
         wanted &= only
 
-    base_images = {latest[series]: hub.get(latest[series]) for series in wanted}
+    # Dockerfile uses the official FPM variant, whose tag has the -fpm suffix.
+    base_images = {latest[series]: hub.get(f"{latest[series]}-fpm") for series in wanted}
     recipe = recipe_hash(base_images)
     print(f"recipe {recipe}", file=sys.stderr)
     for version, digest in sorted(base_images.items(), key=lambda item: vkey(item[0]), reverse=True):

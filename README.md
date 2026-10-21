@@ -1,6 +1,6 @@
 # MediaWiki Docker 镜像
 
-基于官方 [`mediawiki`](https://hub.docker.com/_/mediawiki) 镜像，额外集成 Cargo、CodeMirror、TemplateSandbox、TemplateStylesExtender 扩展和 Citizen 皮肤。镜像由 GitHub Actions 自动构建，发布到 GHCR，支持 `linux/amd64` 和 `linux/arm64`。
+基于官方 [`mediawiki`](https://hub.docker.com/_/mediawiki) 的 PHP-FPM 镜像，使用 Nginx 提供 HTTP 服务，额外集成 Cargo、CodeMirror、TemplateSandbox、TemplateStylesExtender 扩展和 Citizen 皮肤。镜像由 GitHub Actions 自动构建，发布到 GHCR，支持 `linux/amd64` 和 `linux/arm64`。
 
 包含哪些皮肤和扩展，全部由 [`components.json`](components.json) 一个文件决定。
 
@@ -16,7 +16,7 @@
 | `latest` | 官方 stable 系列 | 跨大版本更新 |
 | `lts` | 官方 LTS 系列 | 跨 LTS 大版本更新 |
 
-“配方”指决定镜像内容的文件：`Dockerfile`、`components.json`、`config/`、`docker/`，以及官方 MediaWiki 基础镜像的 digest。基础镜像重新发布（例如 PHP 安全更新）时会自动产生新配方并触发重建。只改文档或工作流不会产生新配方。
+“配方”指决定镜像内容的文件：`Dockerfile`、`components.json`、`config/`、`docker/`，以及官方 MediaWiki FPM 基础镜像的 digest。基础镜像重新发布（例如 PHP 安全更新）时会自动产生新配方并触发重建。只改文档或工作流不会产生新配方。
 
 镜像内的 `/etc/mediawiki-image/components.txt` 记录了每个组件的来源、分支和 commit：
 
