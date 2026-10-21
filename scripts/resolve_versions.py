@@ -5,7 +5,8 @@
   - 通过 stable / lts 标签的 digest 找到它们对应的精确版本（如 1.46.2、1.43.9）
   - 每个系列（1.46、1.43 …）只取最新补丁版本
 
-配方（recipe）：决定镜像内容的仓库文件（Dockerfile、components.json、config/、docker/）的哈希。
+配方（recipe）：决定镜像内容的仓库文件（Dockerfile、components.json、config/、docker/）以及
+官方 MediaWiki 基础镜像 digest 的哈希。基础镜像重建（例如 PHP 安全更新）也会产生新配方。
 每个镜像有一个唯一标签 <MW 版本>-<配方哈希>，例如 1.46.2-3f9c2a1b。
 
 发布规则：
@@ -44,7 +45,7 @@ def vkey(v: str) -> tuple[int, ...]:
     return tuple(int(p) for p in v.split("."))
 
 
-def recipe_hash() -> str:
+def recipe_hash(base_images: dict[str, str | None] | None = None) -> str:
     digest = hashlib.sha256()
     files: list[Path] = []
     for rel in RECIPE_PATHS:
@@ -55,6 +56,11 @@ def recipe_hash() -> str:
             continue
         digest.update(path.relative_to(ROOT).as_posix().encode() + b"\0")
         digest.update(path.read_bytes() + b"\0")
+    if base_images:
+        digest.update(b"mediawiki-base-images\0")
+        for version, image_digest in sorted(base_images.items()):
+            digest.update(version.encode() + b"\0")
+            digest.update((image_digest or "unknown").encode() + b"\0")
     return digest.hexdigest()[:8]
 
 
@@ -103,8 +109,6 @@ def main() -> int:
         print(f"IMAGE must be set and lowercase in publish mode, got {image!r}", file=sys.stderr)
         return 1
 
-    recipe = recipe_hash()
-    print(f"recipe {recipe}", file=sys.stderr)
     hub = fetch_hub_tags()
 
     # 每个系列的最新补丁版本
@@ -133,6 +137,15 @@ def main() -> int:
     wanted = {s for s in wanted if vkey(s) >= vkey(min_series) and s in latest}
     if only:
         wanted &= only
+
+    base_images = {latest[series]: hub.get(latest[series]) for series in wanted}
+    recipe = recipe_hash(base_images)
+    print(f"recipe {recipe}", file=sys.stderr)
+    for version, digest in sorted(base_images.items(), key=lambda item: vkey(item[0]), reverse=True):
+        if digest:
+            print(f"base {version} {digest}", file=sys.stderr)
+        else:
+            print(f"base {version} digest unavailable", file=sys.stderr)
 
     include = []
     for series in sorted(wanted, key=vkey, reverse=True):
