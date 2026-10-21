@@ -9,22 +9,32 @@
 #   docker build --build-arg MW_VERSION=1.46.2 -t mediawiki-custom:1.46.2 .
 
 ARG MW_VERSION=1.46.2
+FROM mediawiki:${MW_VERSION}-fpm AS php-security-build
+
+ARG PHP_SECURITY_VERSION=8.3.36
+ARG PHP_SECURITY_SHA256=dd54693aa334c5c4d72e9aee96b082c2473750a18a6c1d105789c93a3b1692fd
+
+COPY --chmod=0755 docker/build-php-security.sh /usr/local/bin/build-php-security
+RUN PHP_SECURITY_VERSION="$PHP_SECURITY_VERSION" \
+    /usr/local/bin/build-php-security "$PHP_SECURITY_VERSION" "$PHP_SECURITY_SHA256"
+
 FROM mediawiki:${MW_VERSION}-fpm
 
 ARG MW_VERSION
 
-# CVE-2026-109618 and CVE-2026-109619 are fixed in PHP 8.3.36 and later
-# (and in the corresponding supported 8.2/8.4/8.5 releases). Fail the build
-# instead of publishing an image based on a vulnerable PHP runtime.
+# The official FPM image may lag the PHP security release. Copy only the
+# patched runtime binaries from our reproducible source build; extensions and
+# configuration remain from the official MediaWiki image.
+COPY --from=php-security-build /usr/local/bin/php /usr/local/bin/php
+COPY --from=php-security-build /usr/local/sbin/php-fpm /usr/local/sbin/php-fpm
 RUN set -eux; \
-    phpVersion="$(php -r 'echo PHP_VERSION;')"; \
     php -r '
         $v = PHP_VERSION;
         $branch = implode(".", array_slice(explode(".", $v), 0, 2));
         $minimum = ["8.2" => "8.2.35", "8.3" => "8.3.36", "8.4" => "8.4.27", "8.5" => "8.5.12"][$branch] ?? null;
         exit($minimum !== null && version_compare($v, $minimum, ">=") ? 0 : 1);
     ' \
-    || { echo "PHP ${phpVersion} is too old; need a patched 8.2/8.3/8.4/8.5 release for CVE-2026-109618/CVE-2026-109619" >&2; exit 1; }
+    || { echo "PHP runtime is below the patched release for CVE-2026-109618/CVE-2026-109619" >&2; exit 1; }
 
 # 镜像不声明 VOLUME：images、LocalSettings.php 等均为可选外接挂载（见 docker/mw-entrypoint.sh）。
 # 注意 /var/www/data 是官方镜像的 SQLite 数据目录，使用 SQLite 时请自行挂载它。
