@@ -18,6 +18,8 @@
 
 “配方”指决定镜像内容的文件：`Dockerfile`、`components.json`、`config/`、`docker/`，以及官方 MediaWiki FPM 基础镜像的 digest。基础镜像重新发布（例如 PHP 安全更新）时会自动产生新配方并触发重建。只改文档或工作流不会产生新配方。
 
+Dockerfile 要求 PHP 至少为 `8.3.36`，用于阻止发布包含 CVE-2026-109618/CVE-2026-109619 的旧基础镜像。官方 PHP/MediaWiki FPM 镜像发布安全版本后，CI 会因基础镜像 digest 变化自动重新构建。
+
 镜像内的 `/etc/mediawiki-image/components.txt` 记录了每个组件的来源、分支和 commit：
 
 ```sh

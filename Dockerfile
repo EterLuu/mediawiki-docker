@@ -13,6 +13,19 @@ FROM mediawiki:${MW_VERSION}-fpm
 
 ARG MW_VERSION
 
+# CVE-2026-109618 and CVE-2026-109619 are fixed in PHP 8.3.36 and later
+# (and in the corresponding supported 8.2/8.4/8.5 releases). Fail the build
+# instead of publishing an image based on a vulnerable PHP runtime.
+RUN set -eux; \
+    phpVersion="$(php -r 'echo PHP_VERSION;')"; \
+    php -r '
+        $v = PHP_VERSION;
+        $branch = implode(".", array_slice(explode(".", $v), 0, 2));
+        $minimum = ["8.2" => "8.2.35", "8.3" => "8.3.36", "8.4" => "8.4.27", "8.5" => "8.5.12"][$branch] ?? null;
+        exit($minimum !== null && version_compare($v, $minimum, ">=") ? 0 : 1);
+    ' \
+    || { echo "PHP ${phpVersion} is too old; need a patched 8.2/8.3/8.4/8.5 release for CVE-2026-109618/CVE-2026-109619" >&2; exit 1; }
+
 # 镜像不声明 VOLUME：images、LocalSettings.php 等均为可选外接挂载（见 docker/mw-entrypoint.sh）。
 # 注意 /var/www/data 是官方镜像的 SQLite 数据目录，使用 SQLite 时请自行挂载它。
 ENV MW_IMAGE_VERSION=${MW_VERSION} \
