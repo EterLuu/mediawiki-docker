@@ -90,7 +90,8 @@ COPY --chmod=0755 docker/mw-entrypoint.sh /usr/local/bin/mw-entrypoint
 COPY --chmod=0755 docker/mw-smoke-test.sh /usr/local/bin/mw-smoke-test
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --chmod=0755 docker/mediawiki-web-start /usr/local/bin/mediawiki-web-start
-RUN nginx -t
+RUN rm -f /etc/nginx/sites-enabled/default \
+    && nginx -t
 # 升级状态读写脚本：状态存在数据库 updatelog 表中，容器无需持久化卷
 COPY --chmod=0644 docker/ImageState.php docker/CheckComponents.php /usr/local/lib/mediawiki-image/
 
