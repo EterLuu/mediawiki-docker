@@ -16,12 +16,7 @@ ARG MW_VERSION
 # Do not publish an image until the official FPM base has the PHP security fix.
 RUN set -eux; \
     phpVersion="$(php -r 'echo PHP_VERSION;')"; \
-    php -r '
-        $v = PHP_VERSION;
-        $branch = implode(".", array_slice(explode(".", $v), 0, 2));
-        $minimum = ["8.2" => "8.2.35", "8.3" => "8.3.36", "8.4" => "8.4.27", "8.5" => "8.5.12"][$branch] ?? null;
-        exit($minimum !== null && version_compare($v, $minimum, ">=") ? 0 : 1);
-    ' \
+    php -r '$v = PHP_VERSION; $branch = implode(".", array_slice(explode(".", $v), 0, 2)); $minimum = ["8.2" => "8.2.35", "8.3" => "8.3.36", "8.4" => "8.4.27", "8.5" => "8.5.12"][$branch] ?? null; exit($minimum !== null && version_compare($v, $minimum, ">=") ? 0 : 1);' \
     || { echo "PHP ${phpVersion} is below the patched release for CVE-2026-109618/CVE-2026-109619" >&2; exit 1; }
 
 # 镜像不声明 VOLUME：images、LocalSettings.php 等均为可选外接挂载（见 docker/mw-entrypoint.sh）。
